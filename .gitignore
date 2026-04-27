@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+
+# Claude Design handoff bundle (kept locally as design reference)
+.handoff/bundle.tar.gz
+
+# Claude Code local config
+.claude/

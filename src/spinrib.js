@@ -9,23 +9,38 @@ const ARROW_SVG = {
 };
 const ARROW_LABEL = { up: '↑', down: '↓', left: '←', right: '→' };
 
+// items.left[i] is the i-th rib outward from the spine on the left side
+// (so items.left[0] is at x = -1, items.left[1] is at x = -2, ...).
+// items.right[i] mirrors that on the right (x = +1, +2, ...).
+// cover is the spine slide (x = 0) and is required.
+function leftLen(row)  { return row.items && row.items.left  ? row.items.left.length  : 0; }
+function rightLen(row) { return row.items && row.items.right ? row.items.right.length : 0; }
+
+function makeSlide(y, x, row, item, isCover) {
+  return {
+    y, x,
+    kicker: row.kicker,
+    spine: row.spine,
+    title: item.t,
+    tag: item.tag,
+    isCover,
+    hueLight: row.hueLight,
+    hueDark: row.hueDark,
+    coord: `${y + 1}${x >= 0 ? '+' : ''}${x}`,
+  };
+}
+
 function flatten(spines) {
   const slides = [];
   spines.forEach((row, y) => {
-    row.items.forEach((it, idx) => {
-      const x = idx - row.leftCount;
-      slides.push({
-        y, x,
-        kicker: row.kicker,
-        spine: row.spine,
-        title: it.t,
-        tag: it.tag,
-        isCover: !!it.cover,
-        hueLight: row.hueLight,
-        hueDark: row.hueDark,
-        coord: `${y + 1}${x >= 0 ? '+' : ''}${x}`,
-      });
-    });
+    if (!row.cover) {
+      throw new Error(`SpinRib: spine row ${y} (${row.kicker || ''}) is missing a cover`);
+    }
+    slides.push(makeSlide(y, 0, row, row.cover, true));
+    const left  = (row.items && row.items.left)  || [];
+    const right = (row.items && row.items.right) || [];
+    left.forEach((it, i)  => slides.push(makeSlide(y, -(i + 1), row, it, false)));
+    right.forEach((it, i) => slides.push(makeSlide(y,  (i + 1), row, it, false)));
   });
   return slides;
 }
@@ -118,7 +133,7 @@ export class SpinRib {
     }
     if (dx !== 0) {
       const nx = this.pos.x + dx;
-      if (nx < -row.leftCount || nx > row.rightCount) return;
+      if (nx < -leftLen(row) || nx > rightLen(row)) return;
       this._animateTo({ y: this.pos.y, x: nx });
     }
   }
@@ -127,7 +142,7 @@ export class SpinRib {
     if (y === this.pos.y && x === this.pos.x) return;
     if (y < 0 || y >= this.spines.length) return;
     const r = this.spines[y];
-    if (x < -r.leftCount || x > r.rightCount) return;
+    if (x < -leftLen(r) || x > rightLen(r)) return;
     this._animateTo({ y, x });
   }
 
@@ -321,8 +336,8 @@ export class SpinRib {
     const flags = {
       up:    this.pos.y > 0,
       down:  this.pos.y < this.spines.length - 1,
-      left:  this.pos.x > -row.leftCount,
-      right: this.pos.x <  row.rightCount,
+      left:  this.pos.x > -leftLen(row),
+      right: this.pos.x <  rightLen(row),
     };
     const dirs = ['up', 'down', 'left', 'right'];
     const moves = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -348,8 +363,8 @@ export class SpinRib {
     const can = {
       up:    this.pos.y > 0,
       down:  this.pos.y < this.spines.length - 1,
-      left:  this.pos.x > -row.leftCount,
-      right: this.pos.x <  row.rightCount,
+      left:  this.pos.x > -leftLen(row),
+      right: this.pos.x <  rightLen(row),
     };
     const cell = (key, active) =>
       el('div', { class: `spr-keyhints-cell${active ? ' spr-active' : ''}` }, key);
@@ -363,8 +378,8 @@ export class SpinRib {
   _renderMinimap() {
     const s = MINI_SIZES[this.miniSize];
     const t = THEME[this.theme];
-    const maxL = Math.max(...this.spines.map((r) => r.leftCount));
-    const maxR = Math.max(...this.spines.map((r) => r.rightCount));
+    const maxL = Math.max(...this.spines.map(leftLen));
+    const maxR = Math.max(...this.spines.map(rightLen));
     const totalCols = maxL + 1 + maxR;
     const W = totalCols * s.unit + (totalCols - 1) * s.gap;
     const H = this.spines.length * s.unit + (this.spines.length - 1) * s.gap;
@@ -377,7 +392,7 @@ export class SpinRib {
 
     this.spines.forEach((row, y) => {
       const cy = y * (s.unit + s.gap) + s.unit / 2;
-      for (let xOff = -row.leftCount; xOff <= row.rightCount; xOff++) {
+      for (let xOff = -leftLen(row); xOff <= rightLen(row); xOff++) {
         const colIdx = maxL + xOff;
         const cx = colIdx * (s.unit + s.gap) + s.unit / 2;
         const isActive = (y === this.pos.y && xOff === this.pos.x);
@@ -415,12 +430,13 @@ export class SpinRib {
 
     const children = [head, svg];
     if (this.miniSize !== 'sm') {
+      const curRow = this.spines[this.pos.y];
       const foot = el('div', {
         class: 'spr-minimap-foot',
         style: { fontSize: `${s.fontSize}px`, marginTop: `${s.pad - 2}px` },
       }, [
         el('span', {}, `row ${this.pos.y + 1}/${this.spines.length}`),
-        el('span', {}, `${this.spines[this.pos.y].leftCount}L · ${this.spines[this.pos.y].rightCount}R`),
+        el('span', {}, `${leftLen(curRow)}L · ${rightLen(curRow)}R`),
       ]);
       children.push(foot);
     }

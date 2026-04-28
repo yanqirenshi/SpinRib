@@ -14,18 +14,20 @@ Zero dependencies. Vanilla ES modules. No build step required.
     {
       kicker: 'ARCHITECTURE',
       spine: 'The Quiet Geometry',
-      leftCount: 2,
-      rightCount: 3,
       hueLight: '#e8d9c4',
-      hueDark: '#3a3128',
-      items: [
-        { t: 'A note on doorways',          tag: 'fragment' },
-        { t: 'Threshold',                   tag: 'opening'  },
-        { t: 'The Quiet Geometry of Tokyo', tag: 'feature', cover: true },
-        { t: 'Photographs, half-erased',    tag: 'gallery'  },
-        { t: 'Notes from a small platform', tag: 'sidebar'  },
-        { t: 'Index of empty rooms',        tag: 'colophon' },
-      ],
+      hueDark:  '#3a3128',
+      cover: { t: 'The Quiet Geometry of Tokyo', tag: 'feature' },
+      items: {
+        left: [
+          { t: 'Threshold',          tag: 'opening'  }, // x = -1
+          { t: 'A note on doorways', tag: 'fragment' }, // x = -2
+        ],
+        right: [
+          { t: 'Photographs, half-erased',    tag: 'gallery'  }, // x = +1
+          { t: 'Notes from a small platform', tag: 'sidebar'  }, // x = +2
+          { t: 'Index of empty rooms',        tag: 'colophon' }, // x = +3
+        ],
+      },
     },
     // ...more spine rows
   ];
@@ -45,25 +47,25 @@ See [`examples/index.html`](examples/index.html) for a full demo with all contro
 
 ## Data model
 
-A spine is a row in the vertical axis. Each spine has ribs extending left and right of varying length:
-
-```
-items array order:  [-leftCount ... -1, 0 (spine cover), +1 ... +rightCount]
-```
-
-The slide at offset `0` is the **spine slide** (the canonical/cover slide for that row). When the user moves up or down, they always land on the next spine slide (`x = 0`).
+A spine is a row on the vertical axis. Each spine has a single `cover` (the spine slide at `x = 0`) and ribs extending left and right of varying length. When the user moves up or down, they always land on the next spine's cover.
 
 ```js
 {
-  kicker: 'PROFILE',          // section/category label
-  spine: 'Forty-Two Years',   // row title
-  leftCount: 5,               // ribs to the left of spine
-  rightCount: 1,              // ribs to the right of spine
-  hueLight: '#d4dbe5',        // background hue (light theme)
-  hueDark:  '#2a3038',        // background hue (dark theme)
-  items: [/* leftCount + 1 + rightCount entries, left-to-right */]
+  kicker: 'PROFILE',                                          // section/category label
+  spine: 'Forty-Two Years',                                   // row title
+  hueLight: '#d4dbe5',                                        // background hue (light theme)
+  hueDark:  '#2a3038',                                        // background hue (dark theme)
+  cover: { t: 'Forty-Two Years of the Same Bowl', tag: 'feature' },  // x = 0
+  items: {
+    left:  [/* outward from spine: items.left[0]  is at x = -1, [1] is at x = -2, ... */],
+    right: [/* outward from spine: items.right[0] is at x = +1, [1] is at x = +2, ... */],
+  },
 }
 ```
+
+**Rib counts are derived from array lengths** — there is no separate `leftCount` / `rightCount` to keep in sync. To add a rib at the far end, just `items.left.push(...)` or `items.right.push(...)`.
+
+`items.left` may be `[]` (no left ribs) and `items.right` may be `[]` (no right ribs). Either side may also be omitted entirely.
 
 ## Options
 

@@ -1,106 +1,126 @@
-// Sample editorial content. Each spine row has uneven left/right rib counts.
-// Items must total leftCount + 1 (spine) + rightCount, ordered left-to-right.
+// Sample editorial content. Each spine row has uneven left/right ribs.
+// items.left[0] is the rib closest to the spine (x = -1), items.left[1] is x = -2, ...
+// items.right mirrors that on the right (x = +1, +2, ...). cover sits at x = 0.
 
 const HUES_LIGHT = ['#e8d9c4', '#d4dbe5', '#e5d4d4', '#d4e5d6', '#dcd4e5', '#cfd9d4', '#dccfd2'];
 const HUES_DARK  = ['#3a3128', '#2a3038', '#3a2a2a', '#2a3a2c', '#322a3a', '#243030', '#322628'];
 
 const RAW = [
+  // 2L + cover + 3R
   {
     kicker: 'ARCHITECTURE',
     spine: 'The Quiet Geometry',
-    leftCount: 2,
-    rightCount: 3,
-    items: [
-      { t: 'A note on doorways',          tag: 'fragment' },
-      { t: 'Threshold',                   tag: 'opening'  },
-      { t: 'The Quiet Geometry of Tokyo Stations', tag: 'feature', cover: true },
-      { t: 'Photographs, half-erased',    tag: 'gallery'  },
-      { t: 'Notes from a small platform', tag: 'sidebar'  },
-      { t: 'Index of empty rooms',        tag: 'colophon' },
-    ],
+    cover: { t: 'The Quiet Geometry of Tokyo Stations', tag: 'feature' },
+    items: {
+      left: [
+        { t: 'Threshold',                   tag: 'opening'  }, // x = -1
+        { t: 'A note on doorways',          tag: 'fragment' }, // x = -2
+      ],
+      right: [
+        { t: 'Photographs, half-erased',    tag: 'gallery'  }, // x = +1
+        { t: 'Notes from a small platform', tag: 'sidebar'  }, // x = +2
+        { t: 'Index of empty rooms',        tag: 'colophon' }, // x = +3
+      ],
+    },
   },
+  // 5L + cover + 1R
   {
     kicker: 'PROFILE',
     spine: 'Forty-Two Years',
-    leftCount: 5,
-    rightCount: 1,
-    items: [
-      { t: 'A small bowl',                tag: 'sketch'   },
-      { t: 'The first morning queue',     tag: 'fragment' },
-      { t: 'On not changing the recipe',  tag: 'sidebar'  },
-      { t: 'Tetsuo, before',              tag: 'archive'  },
-      { t: 'A photograph of the stove',   tag: 'gallery'  },
-      { t: 'Forty-Two Years of the Same Bowl', tag: 'feature', cover: true },
-      { t: 'Letters from regulars',       tag: 'epilogue' },
-    ],
+    cover: { t: 'Forty-Two Years of the Same Bowl', tag: 'feature' },
+    items: {
+      left: [
+        { t: 'A photograph of the stove',   tag: 'gallery'  }, // x = -1
+        { t: 'Tetsuo, before',              tag: 'archive'  }, // x = -2
+        { t: 'On not changing the recipe',  tag: 'sidebar'  }, // x = -3
+        { t: 'The first morning queue',     tag: 'fragment' }, // x = -4
+        { t: 'A small bowl',                tag: 'sketch'   }, // x = -5
+      ],
+      right: [
+        { t: 'Letters from regulars',       tag: 'epilogue' }, // x = +1
+      ],
+    },
   },
+  // 0L + cover + 2R
   {
     kicker: 'ESSAY',
     spine: 'Against the Scroll',
-    leftCount: 0,
-    rightCount: 2,
-    items: [
-      { t: 'Against the Infinite Scroll', tag: 'feature', cover: true },
-      { t: 'Footnotes',                   tag: 'notes'    },
-      { t: 'A reader writes back',        tag: 'reply'    },
-    ],
+    cover: { t: 'Against the Infinite Scroll', tag: 'feature' },
+    items: {
+      left: [],
+      right: [
+        { t: 'Footnotes',                   tag: 'notes'    }, // x = +1
+        { t: 'A reader writes back',        tag: 'reply'    }, // x = +2
+      ],
+    },
   },
+  // 3L + cover + 3R
   {
     kicker: 'OBJECT',
     spine: 'The Index Card',
-    leftCount: 3,
-    rightCount: 3,
-    items: [
-      { t: 'Linnaeus’s slips',       tag: 'archive'  },
-      { t: 'A wooden cabinet',            tag: 'object'   },
-      { t: 'Before the database',         tag: 'opening'  },
-      { t: 'A Brief History of the Index Card', tag: 'feature', cover: true },
-      { t: 'How to make one',             tag: 'manual'   },
-      { t: 'A taxonomy of taxonomies',    tag: 'sidebar'  },
-      { t: 'Colophon',                    tag: 'colophon' },
-    ],
+    cover: { t: 'A Brief History of the Index Card', tag: 'feature' },
+    items: {
+      left: [
+        { t: 'Before the database',         tag: 'opening'  }, // x = -1
+        { t: 'A wooden cabinet',            tag: 'object'   }, // x = -2
+        { t: 'Linnaeus’s slips',            tag: 'archive'  }, // x = -3
+      ],
+      right: [
+        { t: 'How to make one',             tag: 'manual'   }, // x = +1
+        { t: 'A taxonomy of taxonomies',    tag: 'sidebar'  }, // x = +2
+        { t: 'Colophon',                    tag: 'colophon' }, // x = +3
+      ],
+    },
   },
+  // 4L + cover + 0R
   {
     kicker: 'FIELD',
     spine: 'The Refusing Gardener',
-    leftCount: 4,
-    rightCount: 0,
-    items: [
-      { t: 'A garden in May',             tag: 'sketch'   },
-      { t: 'Forty seasons in',            tag: 'fragment' },
-      { t: 'On planning',                 tag: 'sidebar'  },
-      { t: 'The moss this morning',       tag: 'opening'  },
-      { t: 'The Gardener Who Refuses to Plan', tag: 'feature', cover: true },
-    ],
+    cover: { t: 'The Gardener Who Refuses to Plan', tag: 'feature' },
+    items: {
+      left: [
+        { t: 'The moss this morning',       tag: 'opening'  }, // x = -1
+        { t: 'On planning',                 tag: 'sidebar'  }, // x = -2
+        { t: 'Forty seasons in',            tag: 'fragment' }, // x = -3
+        { t: 'A garden in May',             tag: 'sketch'   }, // x = -4
+      ],
+      right: [],
+    },
   },
+  // 4L + cover + 4R
   {
     kicker: 'CINEMA',
     spine: 'Rooms of Edward Yang',
-    leftCount: 4,
-    rightCount: 4,
-    items: [
-      { t: 'A hallway in Taipei',         tag: 'still'    },
-      { t: 'Light through blinds',        tag: 'still'    },
-      { t: 'On corners',                  tag: 'sidebar'  },
-      { t: 'Empty seats',                 tag: 'fragment' },
-      { t: 'Rooms in the Films of Edward Yang', tag: 'feature', cover: true },
-      { t: 'A taxonomy of windows',       tag: 'index'    },
-      { t: 'Sound design notes',          tag: 'manual'   },
-      { t: 'Letterbox vs window',         tag: 'essay'    },
-      { t: 'Closing credits',             tag: 'colophon' },
-    ],
+    cover: { t: 'Rooms in the Films of Edward Yang', tag: 'feature' },
+    items: {
+      left: [
+        { t: 'Empty seats',                 tag: 'fragment' }, // x = -1
+        { t: 'On corners',                  tag: 'sidebar'  }, // x = -2
+        { t: 'Light through blinds',        tag: 'still'    }, // x = -3
+        { t: 'A hallway in Taipei',         tag: 'still'    }, // x = -4
+      ],
+      right: [
+        { t: 'A taxonomy of windows',       tag: 'index'    }, // x = +1
+        { t: 'Sound design notes',          tag: 'manual'   }, // x = +2
+        { t: 'Letterbox vs window',         tag: 'essay'    }, // x = +3
+        { t: 'Closing credits',             tag: 'colophon' }, // x = +4
+      ],
+    },
   },
+  // 1L + cover + 2R
   {
     kicker: 'COLOPHON',
     spine: 'The Making of This Issue',
-    leftCount: 1,
-    rightCount: 2,
-    items: [
-      { t: 'Five cities',                 tag: 'note'     },
-      { t: 'On the Making of This Issue', tag: 'feature', cover: true },
-      { t: 'Errata',                      tag: 'notes'    },
-      { t: 'Index',                       tag: 'index'    },
-    ],
+    cover: { t: 'On the Making of This Issue', tag: 'feature' },
+    items: {
+      left: [
+        { t: 'Five cities',                 tag: 'note'     }, // x = -1
+      ],
+      right: [
+        { t: 'Errata',                      tag: 'notes'    }, // x = +1
+        { t: 'Index',                       tag: 'index'    }, // x = +2
+      ],
+    },
   },
 ];
 

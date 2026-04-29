@@ -1,17 +1,26 @@
 {
   "name": "spinrib",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A 2D spine-and-rib slider for the web. Vertical spine of rows with uneven-length ribs extending left and right.",
   "type": "module",
   "main": "src/spinrib.js",
   "exports": {
     ".": "./src/spinrib.js",
     "./theme": "./src/theme.js",
-    "./styles": "./src/styles.js"
+    "./styles": "./src/styles.js",
+    "./react": "./src/react/SpinRib.jsx"
   },
-  "files": ["src", "README.md"],
-  "keywords": ["slider", "carousel", "2d", "spine", "rib", "grid", "navigation"],
+  "files": ["src", "README.md", "DATAMODEL.md"],
+  "keywords": ["slider", "carousel", "2d", "spine", "rib", "grid", "navigation", "react", "next"],
   "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true }
+  },
   "scripts": {
     "serve": "python -m http.server 8000"
   }

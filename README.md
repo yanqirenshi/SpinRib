@@ -43,6 +43,40 @@ Zero dependencies. Vanilla ES modules. No build step required. Content-agnostic 
 
 For a fully styled editorial example with all controls wired up, see [`examples/index.html`](examples/index.html).
 
+### React / Next.js
+
+```bash
+npm install spinrib react react-dom
+```
+
+```jsx
+'use client';
+import { SpinRib } from 'spinrib/react';
+
+export default function Demo() {
+  return (
+    <SpinRib
+      spines={[
+        { cover: 'Hello' },
+        { cover: 'World', items: { right: ['World again'] } },
+      ]}
+      renderSlide={(data, ctx) => (
+        <div style={{
+          display: 'grid', placeItems: 'center',
+          background: 'var(--spr-bg)', color: 'var(--spr-fg)',
+          fontSize: 100,
+        }}>
+          {data}
+        </div>
+      )}
+      style={{ width: 1280, aspectRatio: '16 / 9' }}
+    />
+  );
+}
+```
+
+`'use client'` is required when rendering `<SpinRib>` from a Next.js server component — the library uses `window` / `document`. See [`examples/react/README.md`](examples/react/README.md) for a full walkthrough including theme switching, accessing row-level data inside `renderSlide`, and the wrapper's internals.
+
 ## Data model — two layers
 
 SpinRib's data model has a sharp split:

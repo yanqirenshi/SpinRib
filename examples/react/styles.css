@@ -1,0 +1,118 @@
+/* Page-level styles for the React demo. The slide-content styles live
+   in ../slide-styles.css and are reused unchanged. */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f0eee9;
+  -webkit-font-smoothing: antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color: #15140f;
+}
+* { box-sizing: border-box; }
+
+.page {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+.page-head {
+  margin-bottom: 32px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  font-family: 'Fraunces', 'Times New Roman', serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-size: clamp(28px, 3vw, 40px);
+  margin: 0;
+}
+.page-head p {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(21, 20, 15, 0.55);
+  margin: 0;
+  max-width: 520px;
+  line-height: 1.6;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+  padding: 14px 18px;
+  background: rgba(255, 254, 250, 0.85);
+  border: 1px solid rgba(21, 20, 15, 0.12);
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.control-group > label.title { color: rgba(21, 20, 15, 0.55); }
+
+.seg {
+  display: inline-flex;
+  border: 1px solid rgba(21, 20, 15, 0.18);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.seg button {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: rgba(21, 20, 15, 0.55);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  border-right: 1px solid rgba(21, 20, 15, 0.18);
+}
+.seg button:last-child { border-right: none; }
+.seg button.active { background: #15140f; color: #f6f5f1; }
+.seg button:not(.active):hover { background: rgba(21, 20, 15, 0.04); }
+
+select {
+  border: 1px solid rgba(21, 20, 15, 0.18);
+  border-radius: 4px;
+  padding: 6px 10px;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.stage-wrap {
+  width: 100%;
+  max-width: 1280px;
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  border: 1px solid rgba(21, 20, 15, 0.10);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 2px 24px rgba(0, 0, 0, 0.06);
+}
+
+.helper {
+  margin-top: 18px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(21, 20, 15, 0.55);
+  text-align: center;
+}

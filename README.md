@@ -67,6 +67,8 @@ A spine is a row on the vertical axis. Each spine has a single `cover` (the spin
 
 `items.left` may be `[]` (no left ribs) and `items.right` may be `[]` (no right ribs). Either side may also be omitted entirely.
 
+For the full specification — field types, constraints, JSON Schema, authoring guidelines — see [`DATAMODEL.md`](DATAMODEL.md).
+
 ## Options
 
 | Option        | Type                                                    | Default        | Description                                          |

@@ -41,7 +41,7 @@ Zero dependencies. Vanilla ES modules. No build step required. Content-agnostic 
 </script>
 ```
 
-For a fully styled editorial example with all controls wired up, see [`examples/index.html`](examples/index.html).
+For a fully styled editorial example with all controls wired up, see [`examples/vanilla/index.html`](examples/vanilla/index.html).
 
 ### React / Next.js
 
@@ -75,7 +75,7 @@ export default function Demo() {
 }
 ```
 
-`'use client'` is required when rendering `<SpinRib>` from a Next.js server component — the library uses `window` / `document`. See [`examples/react/README.md`](examples/react/README.md) for a full walkthrough including theme switching, accessing row-level data inside `renderSlide`, and the wrapper's internals.
+`'use client'` is required when rendering `<SpinRib>` from a Next.js server component — the library uses `window` / `document`. The [`examples/nextjs/`](examples/nextjs/) directory shows a full App Router project layout with the Server / Client boundary in place; [`examples/react/README.md`](examples/react/README.md) covers the wrapper's internals.
 
 ## Data model — two layers
 
@@ -137,7 +137,7 @@ function makeRenderer(spines) {
 }
 ```
 
-The reference editorial demo at [`examples/slide-renderer.js`](examples/slide-renderer.js) uses this pattern.
+The reference editorial demo at [`examples/vanilla/slide-renderer.js`](examples/vanilla/slide-renderer.js) uses this pattern.
 
 ## API
 
@@ -173,17 +173,37 @@ See [`DATAMODEL.md` § 4](DATAMODEL.md#4-css-variable-contract-public) for the f
 
 ```
 src/
-  spinrib.js          — main class, no dependencies (Layer 1 only)
-  theme.js            — color tokens for light/dark
-  styles.js           — chrome CSS injected into <head> on first instance
+  spinrib.js              — main class, no dependencies (Layer 1 only)
+  theme.js                — color tokens for light/dark
+  styles.js               — chrome CSS injected into <head> on first instance
+  react/SpinRib.jsx       — React wrapper, exported as 'spinrib/react'
 
 examples/
-  index.html          — interactive editorial demo
-  sample-data.js      — reference editorial schema
-  slide-renderer.js   — reference renderSlide for that schema (Layer 2)
-  slide-styles.css    — reference slide CSS (Layer 2)
+  vanilla/                — framework-agnostic demo (no build step required)
+    index.html
+    sample-data.js
+    slide-renderer.js
+    slide-styles.css
+  react/                  — React demo (CDN React + babel-standalone)
+    index.html
+    App.jsx
+    EditorialSlide.jsx
+    sample-data.js
+    slide-styles.css
+    styles.css
+    README.md
+  nextjs/                 — Next.js (App Router) project starter
+    package.json
+    next.config.mjs
+    app/{layout,page}.jsx
+    components/Demo.jsx
+    components/EditorialSlide.jsx
+    components/sample-data.js
+    components/slide-styles.css
+    README.md
 
-DATAMODEL.md          — full data-model specification
+DATAMODEL.md              — full data-model specification
+tools/dev-server.py       — `npm run serve` (no-cache static server for dev)
 ```
 
 ## License

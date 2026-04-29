@@ -6,11 +6,12 @@ A React wrapper around the SpinRib library and a demo using it. The wrapper itse
 
 | File                  | Role                                                                |
 |-----------------------|---------------------------------------------------------------------|
+| `index.html`          | In-browser bootstrap (CDN React + babel-standalone). For visual check; not for production.|
 | `App.jsx`             | Demo app. Owns the controls (theme, mini-map size, chrome, transition). |
 | `EditorialSlide.jsx`  | Slide component for the editorial schema (`{ kicker, spine, hueLight, hueDark, cover, items }`). |
-| `sample-data.js`      | Sample data (re-exported from `../sample-data.js`).                |
+| `sample-data.js`      | Sample data (editorial schema).                                      |
+| `slide-styles.css`    | Slide-content styles.                                                |
 | `styles.css`          | Page-level styles for the demo (controls, layout).                  |
-| `../slide-styles.css` | Slide-content styles (reused unchanged from the vanilla demo).     |
 
 The wrapper itself lives at [`../../src/react/SpinRib.jsx`](../../src/react/SpinRib.jsx) and is exported from the package as `spinrib/react`.
 
@@ -97,7 +98,11 @@ The wrapper rebuilds the SpinRib instance only when the `spines` prop reference 
 
 ## Running this directory in development
 
-There is no in-browser bootstrap for this directory — the JSX requires a build/transform step. Either:
+The included `index.html` boots the JSX via babel-standalone for a quick in-browser preview. From the project root:
 
-- **Easiest**: Drop the files into an existing Next.js / Vite / CRA app and import `App` from `./App.jsx`. Adjust the `import { SpinRib } from '../../src/react/SpinRib.jsx'` to `from 'spinrib/react'` once `spinrib` is installed.
-- **Visual sanity check without React**: the framework-agnostic demo at [`../index.html`](../index.html) renders the same content with no build step.
+```bash
+npm run serve
+# then open http://localhost:8000/examples/react/index.html
+```
+
+For real React projects (Vite / CRA / Next.js) the canonical sources are the `.jsx` files; copy them into your project structure and import `SpinRib` from `'spinrib/react'` instead of the relative path used in the demo. See [`../nextjs/`](../nextjs/) for a Next.js-specific layout.

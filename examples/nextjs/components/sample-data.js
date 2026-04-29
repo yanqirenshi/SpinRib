@@ -1,4 +1,4 @@
-// Sample editorial content for the React demo.
+// Sample editorial content for the Next.js demo.
 //
 // Schema notes:
 //   - The library REQUIRES only `cover` and (optionally) `items.{left,right}`.

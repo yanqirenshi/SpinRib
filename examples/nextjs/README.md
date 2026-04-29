@@ -25,33 +25,24 @@ examples/nextjs/
 
 ## Run locally
 
-This example assumes `spinrib` is available as a dependency. There are two ways to wire that up:
-
-### Option A — once spinrib is published to npm
-
 ```bash
 cd examples/nextjs
 npm install
 npm run dev
 ```
 
-### Option B — develop against the in-repo source (linked)
-
-From the **repo root**:
-
-```bash
-# 1. Make this repo's package available as a tarball link
-npm link
-# 2. Wire it into the Next.js example
-cd examples/nextjs
-npm install        # installs next, react, react-dom from the registry
-npm link spinrib   # symlinks node_modules/spinrib → repo root
-npm run dev
-```
-
 Open http://localhost:3000 .
 
-> **Note** — `npm link spinrib` makes Next.js resolve `import { SpinRib } from 'spinrib/react'` to `<repo-root>/src/react/SpinRib.jsx`. The `transpilePackages: ['spinrib']` line in `next.config.mjs` is what allows Next.js to transform the `.jsx` source on the fly.
+The `package.json` uses `"spinrib": "file:../.."` so a single `npm install` symlinks (or copies) the in-repo library into `node_modules/spinrib`. No `npm link` dance required.
+
+> **Note** — `transpilePackages: ['spinrib']` in `next.config.mjs` is what allows Next.js to transform spinrib's `.jsx` source on the fly. Without it, Next.js would complain about JSX syntax in `node_modules/spinrib/src/react/SpinRib.jsx`.
+
+### When you copy this example into your own project
+
+The `file:../..` reference assumes the example sits inside the spinrib repo. When relocating:
+
+- **Once spinrib is published to npm**: change `"spinrib": "file:../.."` to `"spinrib": "^0.3.0"` and `npm install` as usual.
+- **Vendoring the source**: copy `src/` into your project and import `'./src/react/SpinRib.jsx'` directly (drop the `'spinrib/react'` import).
 
 ## Server / Client boundary
 

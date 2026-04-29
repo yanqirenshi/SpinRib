@@ -9,44 +9,23 @@ const ARROW_SVG = {
 };
 const ARROW_LABEL = { up: '↑', down: '↓', left: '←', right: '→' };
 
-// items.left[i] is the i-th rib outward from the spine on the left side
-// (so items.left[0] is at x = -1, items.left[1] is at x = -2, ...).
-// items.right[i] mirrors that on the right (x = +1, +2, ...).
-// cover is the spine slide (x = 0) and is required.
-function leftLen(row)  { return row.items && row.items.left  ? row.items.left.length  : 0; }
-function rightLen(row) { return row.items && row.items.right ? row.items.right.length : 0; }
+// Rib lengths are derived from the array. The library does not look at
+// any other field on the row — kicker, hue, etc. are consumer concerns.
+function leftLen(row)  { return row && row.items && row.items.left  ? row.items.left.length  : 0; }
+function rightLen(row) { return row && row.items && row.items.right ? row.items.right.length : 0; }
 
-function makeSlide(y, x, row, item, isCover) {
-  return {
-    y, x,
-    kicker: row.kicker,
-    spine: row.spine,
-    title: item.t,
-    tag: item.tag,
-    isCover,
-    hueLight: row.hueLight,
-    hueDark: row.hueDark,
-    coord: `${y + 1}${x >= 0 ? '+' : ''}${x}`,
-  };
-}
-
-function flatten(spines) {
-  const slides = [];
-  spines.forEach((row, y) => {
-    if (!row.cover) {
-      throw new Error(`SpinRib: spine row ${y} (${row.kicker || ''}) is missing a cover`);
-    }
-    slides.push(makeSlide(y, 0, row, row.cover, true));
-    const left  = (row.items && row.items.left)  || [];
-    const right = (row.items && row.items.right) || [];
-    left.forEach((it, i)  => slides.push(makeSlide(y, -(i + 1), row, it, false)));
-    right.forEach((it, i) => slides.push(makeSlide(y,  (i + 1), row, it, false)));
-  });
-  return slides;
-}
-
-function findSlide(slides, y, x) {
-  return slides.find((s) => s.y === y && s.x === x) || null;
+// Resolve (y, x) to the raw value the consumer placed there.
+// Returns null when the coordinate is out of bounds.
+function getDataAt(spines, y, x) {
+  const row = spines[y];
+  if (!row) return null;
+  if (x === 0) return row.cover ?? null;
+  if (x < 0) {
+    const i = -x - 1;
+    return row.items && row.items.left ? row.items.left[i] ?? null : null;
+  }
+  const i = x - 1;
+  return row.items && row.items.right ? row.items.right[i] ?? null : null;
 }
 
 function el(tag, attrs = {}, children = []) {
@@ -79,17 +58,21 @@ function svgEl(tag, attrs = {}) {
 
 export class SpinRib {
   /**
+   * Create a 2D spine-and-rib slider. The library is content-agnostic:
+   * it only inspects the structure (cover + items.{left, right}) and
+   * delegates slide rendering to the user-supplied `renderSlide`.
+   *
    * @param {object} options
    * @param {HTMLElement} options.container — host element to mount into
-   * @param {Array} options.spines — array of spine rows
+   * @param {Array<{cover:any, items?:{left?:any[], right?:any[]}}>} options.spines
+   * @param {(data:any, ctx:{y:number,x:number,isCover:boolean,theme:'light'|'dark'}) => HTMLElement} options.renderSlide
    * @param {'light'|'dark'} [options.theme='light']
    * @param {'sm'|'md'|'lg'} [options.miniSize='md']
    * @param {'arrows'|'arrows-with-hints'|'keyboard'|'both'} [options.chrome='arrows']
    * @param {'slide'|'fade'|'cut'} [options.transition='slide']
-   * @param {string} [options.label='SPINE+RIB']
    * @param {boolean} [options.enableKeys=true]
-   * @param {(slide: object, theme: object) => HTMLElement} [options.renderSlide]
-   * @param {(event: {type:string, pos:{y:number,x:number}}) => void} [options.onChange]
+   * @param {(row:any, y:number) => string} [options.rowLabel] — mini-map current-row label
+   * @param {(event:{type:string, pos:{y:number,x:number}, data:any}) => void} [options.onChange]
    */
   constructor(options) {
     if (!options || !options.container) {
@@ -98,19 +81,26 @@ export class SpinRib {
     if (!Array.isArray(options.spines) || options.spines.length === 0) {
       throw new Error('SpinRib: `spines` option must be a non-empty array');
     }
+    if (typeof options.renderSlide !== 'function') {
+      throw new Error('SpinRib: `renderSlide` callback is required (data, ctx) => HTMLElement');
+    }
+    options.spines.forEach((row, y) => {
+      if (!row || row.cover === undefined || row.cover === null) {
+        throw new Error(`SpinRib: spine row ${y} is missing a cover`);
+      }
+    });
 
     this.container = options.container;
     this.spines = options.spines;
+    this.renderSlideCb = options.renderSlide;
     this.theme = options.theme || 'light';
     this.miniSize = options.miniSize || 'md';
     this.chrome = options.chrome || 'arrows';
     this.transition = options.transition || 'slide';
-    this.label = options.label || 'SPINE+RIB';
     this.enableKeys = options.enableKeys !== false;
-    this.renderSlide = options.renderSlide || null;
+    this.rowLabel = options.rowLabel || ((_row, y) => `Row ${y + 1}`);
     this.onChange = options.onChange || null;
 
-    this.slides = flatten(this.spines);
     this.pos = { y: 0, x: 0 };
     this.prev = null;
     this.animating = false;
@@ -169,6 +159,12 @@ export class SpinRib {
     this.transition = t;
   }
 
+  /** Returns the raw data at the current position. */
+  currentData() { return getDataAt(this.spines, this.pos.y, this.pos.x); }
+
+  /** Returns { y, x, isCover }. */
+  currentPos() { return { y: this.pos.y, x: this.pos.x, isCover: this.pos.x === 0 }; }
+
   destroy() {
     if (this._keyHandler) {
       window.removeEventListener('keydown', this._keyHandler);
@@ -182,6 +178,7 @@ export class SpinRib {
   // ── Internal ──────────────────────────────────────────────────────
   _mount() {
     this.root = el('div', { class: 'spr-root' });
+    this.root.dataset.theme = this.theme;
     this._applyThemeVars();
     this.container.appendChild(this.root);
   }
@@ -201,7 +198,8 @@ export class SpinRib {
       '--spr-arrow-disabled': t.arrowDisabled,
       '--spr-mini-bg': t.miniBg,
       '--spr-mini-border': t.miniBorder,
-      '--spr-grain': this.theme === 'dark' ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.022)',
+      '--spr-mini-rib': t.miniRib,
+      '--spr-mini-rib-faint': t.miniRibFaint,
       '--spr-panel-shadow': t.panelShadow,
     };
     for (const [k, v] of Object.entries(map)) {
@@ -209,6 +207,7 @@ export class SpinRib {
     }
     this.root.style.background = t.bg;
     this.root.style.color = t.fg;
+    this.root.dataset.theme = this.theme;
   }
 
   _bindKeys() {
@@ -235,17 +234,15 @@ export class SpinRib {
       this.prev = null;
       this._render();
     }, ANIM_DURATION_MS);
-    if (this.onChange) this.onChange({ type: 'change', pos: { ...this.pos } });
+    if (this.onChange) {
+      this.onChange({ type: 'change', pos: { ...this.pos }, data: this.currentData() });
+    }
   }
 
   _render() {
     this.root.innerHTML = '';
 
-    const slide = findSlide(this.slides, this.pos.y, this.pos.x);
-    const prevSlide = this.prev ? findSlide(this.slides, this.prev.y, this.prev.x) : null;
-
-    this.root.appendChild(this._renderStage(slide, prevSlide));
-    this.root.appendChild(this._renderHeader());
+    this.root.appendChild(this._renderStage());
 
     const showArrows = this.chrome === 'arrows' || this.chrome === 'both' || this.chrome === 'arrows-with-hints';
     const showKeys = this.chrome === 'keyboard' || this.chrome === 'both';
@@ -259,76 +256,51 @@ export class SpinRib {
     this.root.appendChild(this._renderMinimap());
   }
 
-  _renderStage(slide, prevSlide) {
+  _renderStage() {
     const stage = el('div', { class: 'spr-stage' });
     const useTransition = this.transition;
-    const hasPrev = prevSlide && useTransition !== 'cut' && this.animating;
+    const hasPrev = !!this.prev && useTransition !== 'cut' && this.animating;
 
     let dx = 0, dy = 0;
     if (hasPrev) {
-      dx = slide.x - prevSlide.x;
-      dy = slide.y - prevSlide.y;
+      dx = this.pos.x - this.prev.x;
+      dy = this.pos.y - this.prev.y;
     }
     const dirX = dx > 0 ? 1 : dx < 0 ? -1 : 0;
     const dirY = dy > 0 ? 1 : dy < 0 ? -1 : 0;
 
     if (hasPrev) {
-      const prevNode = this._renderSlide(prevSlide);
-      prevNode.style.setProperty('--spr-dx', `${-dirX * 100}%`);
-      prevNode.style.setProperty('--spr-dy', `${-dirY * 100}%`);
-      prevNode.style.animation = useTransition === 'slide'
+      const prevWrap = this._renderSlideWrapper(this.prev.y, this.prev.x);
+      prevWrap.style.setProperty('--spr-dx', `${-dirX * 100}%`);
+      prevWrap.style.setProperty('--spr-dy', `${-dirY * 100}%`);
+      prevWrap.style.animation = useTransition === 'slide'
         ? `spr-prev-out ${ANIM_DURATION_MS}ms cubic-bezier(.7,0,.2,1) forwards`
         : `spr-fade-out ${ANIM_DURATION_MS}ms ease forwards`;
-      stage.appendChild(prevNode);
+      stage.appendChild(prevWrap);
     }
 
-    const curNode = this._renderSlide(slide);
-    curNode.style.setProperty('--spr-dx', `${dirX * 100}%`);
-    curNode.style.setProperty('--spr-dy', `${dirY * 100}%`);
+    const curWrap = this._renderSlideWrapper(this.pos.y, this.pos.x);
+    curWrap.style.setProperty('--spr-dx', `${dirX * 100}%`);
+    curWrap.style.setProperty('--spr-dy', `${dirY * 100}%`);
     if (this.animating && useTransition !== 'cut') {
-      curNode.style.animation = useTransition === 'slide'
+      curWrap.style.animation = useTransition === 'slide'
         ? `spr-cur-in ${ANIM_DURATION_MS}ms cubic-bezier(.7,0,.2,1) forwards`
         : `spr-fade-in ${ANIM_DURATION_MS}ms ease forwards`;
     }
-    stage.appendChild(curNode);
+    stage.appendChild(curWrap);
     return stage;
   }
 
-  _renderSlide(slide) {
-    if (this.renderSlide) {
-      const node = this.renderSlide(slide, THEME[this.theme]);
-      node.classList.add('spr-slide');
-      return node;
-    }
-    const hue = this.theme === 'dark' ? slide.hueDark : slide.hueLight;
-    const glyph = slide.isCover ? '◆' : (slide.x === 0 ? '●' : (slide.x < 0 ? '◀' : '▶'));
-    const ribLabel = slide.x === 0 ? 'SPINE' : (slide.x < 0 ? 'L-RIB' : 'R-RIB');
-
-    return el('div', { class: 'spr-slide' }, [
-      el('div', { class: 'spr-slide-image', style: { background: hue } }, [
-        el('div', { class: 'spr-slide-image-meta' }, [
-          el('div', { class: 'spr-slide-image-coord' }, slide.coord),
-          el('div', { class: 'spr-slide-image-glyph' }, glyph),
-        ]),
-        el('div', { class: 'spr-slide-image-tag' }, `image · ${slide.tag}`),
-      ]),
-      el('div', { class: 'spr-slide-text' }, [
-        el('div', { class: 'spr-slide-kicker' }, `${slide.kicker} · ${slide.spine}`),
-        el('h1', { class: 'spr-slide-title' }, slide.title),
-        el('div', { class: 'spr-slide-footer' }, [
-          el('span', {}, 'SpinRib · No. 014'),
-          el('span', {}, `${ribLabel} ${Math.abs(slide.x) || 0}`),
-        ]),
-      ]),
-    ]);
-  }
-
-  _renderHeader() {
-    return el('div', { class: 'spr-header' }, [
-      el('span', { class: 'spr-header-brand' }, 'SpinRib'),
-      el('span', { class: 'spr-header-sep' }, '·'),
-      el('span', { class: 'spr-header-label' }, this.label),
-    ]);
+  _renderSlideWrapper(y, x) {
+    const data = getDataAt(this.spines, y, x);
+    const inner = this.renderSlideCb(data, {
+      y, x,
+      isCover: x === 0,
+      theme: this.theme,
+    });
+    const wrap = el('div', { class: 'spr-slide' });
+    if (inner instanceof Node) wrap.appendChild(inner);
+    return wrap;
   }
 
   _renderArrows(withHints) {
@@ -405,9 +377,6 @@ export class SpinRib {
           fill,
           class: 'spr-minimap-cell',
         });
-        const title = svgEl('title');
-        title.textContent = `${row.kicker} · row ${y + 1}, offset ${xOff}`;
-        rect.appendChild(title);
         rect.addEventListener('click', () => this.jumpTo(y, xOff));
         rect.addEventListener('mouseenter', () => {
           if (!isActive) rect.setAttribute('fill', t.miniRib);
@@ -419,18 +388,20 @@ export class SpinRib {
       }
     });
 
+    const curRow = this.spines[this.pos.y];
+    const curRowLabel = String(this.rowLabel(curRow, this.pos.y) || '');
+    const xLabel = this.pos.x === 0 ? 'SPN' : (this.pos.x < 0 ? `L${-this.pos.x}` : `R${this.pos.x}`);
+
     const head = el('div', {
       class: 'spr-minimap-head',
       style: { fontSize: `${s.fontSize}px`, marginBottom: `${s.pad - 2}px` },
     }, [
       el('span', {}, 'SPINE / RIB'),
-      el('span', { class: 'spr-minimap-head-current' },
-        `${this.spines[this.pos.y].kicker.slice(0, 4)} · ${this.pos.x === 0 ? 'SPN' : (this.pos.x < 0 ? `L${-this.pos.x}` : `R${this.pos.x}`)}`),
+      el('span', { class: 'spr-minimap-head-current' }, `${curRowLabel} · ${xLabel}`),
     ]);
 
     const children = [head, svg];
     if (this.miniSize !== 'sm') {
-      const curRow = this.spines[this.pos.y];
       const foot = el('div', {
         class: 'spr-minimap-foot',
         style: { fontSize: `${s.fontSize}px`, marginTop: `${s.pad - 2}px` },

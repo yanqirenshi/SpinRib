@@ -1,148 +1,71 @@
 # SpinRib Data Model Specification
 
-Version: `0.1` — initial spec, aligned with library version `0.1.0`.
+Version: `0.2` — aligned with library version `0.2.0`.
 
-This document is the authoritative specification for the `spines` data structure consumed by `new SpinRib({ spines, ... })`. Library implementations and authoring tools should treat this file as the contract.
-
----
-
-## 1. Overview
-
-A SpinRib dataset describes a **2-dimensional set of slides** organized as a vertical _spine_ of rows, where each row has a single _cover_ slide and a number of _ribs_ (additional slides) extending outward to the left and right of the cover.
-
-```
-y=0  [ left ribs … ]  ◆ COVER  [ … right ribs ]
-                         │
-y=1  [ … left ribs ]  ◆ COVER  [ right ribs … ]
-                         │
-y=2                   ◆ COVER  [ right ribs ]
-                         │
-…
-```
-
-- **`y`** identifies a row (the spine index, top-to-bottom).
-- **`x`** identifies a column offset from the cover (negative = left, `0` = cover, positive = right).
-- The cover is always at `x = 0` for every row.
-- Rib counts on the left and right are independent and may differ from row to row, including being zero.
+This document specifies the contract between SpinRib and its consumer. The library is **content-agnostic**: it only inspects the structure of `spines` (covers and ribs) and delegates all slide rendering to a consumer-supplied callback.
 
 ---
 
-## 2. Top-level shape
+## 1. Two-layer model
+
+SpinRib data has two clearly separated layers. **Only the first layer is part of the library's contract**.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 1 — STRUCTURE (library's contract)                    │
+│                                                             │
+│   What SpinRib knows: cover + items.left[] + items.right[]  │
+│   That's it. Nothing else.                                  │
+└─────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ inspected by
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 2 — CONTENT (consumer's responsibility)               │
+│                                                             │
+│   Whatever you put inside `cover` and the items arrays.     │
+│   Strings, objects, image URLs, JSX elements — opaque to    │
+│   the library, interpreted only by your renderSlide().      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+You can think of SpinRib as a 2D positional index over arbitrary content.
+
+---
+
+## 2. Layer 1 — Structure (normative)
+
+### 2.1 Top-level
 
 ```ts
 type Spines = SpineRow[];
 ```
 
-A non-empty array of `SpineRow` objects, ordered top-to-bottom along the spine.
+A non-empty array of `SpineRow`s. Index in the array == row coordinate `y`.
 
-**Constraints:**
-- `Spines.length >= 1` (must have at least one row).
-- Index in the array == row coordinate `y`.
-
----
-
-## 3. `SpineRow`
+### 2.2 `SpineRow`
 
 ```ts
 interface SpineRow {
-  kicker:    string;        // category / section label
-  spine:     string;        // row title
-  hueLight:  string;        // CSS color for light theme background
-  hueDark:   string;        // CSS color for dark theme background
-  cover:     Item;          // the spine slide at x = 0  (REQUIRED)
+  cover: any;                                    // REQUIRED. The slide at x = 0.
   items?: {
-    left?:  Item[];         // ribs extending to the left  (optional, default [])
-    right?: Item[];         // ribs extending to the right (optional, default [])
+    left?:  any[];                               // outward from spine: [0]→x=-1, [1]→x=-2, ...
+    right?: any[];                               // outward from spine: [0]→x=+1, [1]→x=+2, ...
   };
+  // Any additional properties are ignored by the library (Layer 2).
 }
 ```
 
-### 3.1 Field-by-field
+**Constraints (enforced):**
+- `cover` MUST be present and not `null` / `undefined`. The library throws on construction if any row is missing one.
+- Both `items`, `items.left`, `items.right` are optional. Omitted keys behave as empty arrays.
 
-| Field        | Type                  | Required | Notes                                                                 |
-|--------------|-----------------------|:--------:|-----------------------------------------------------------------------|
-| `kicker`     | `string`              | ✅        | Short upper-case label (e.g. `'ARCHITECTURE'`). Shown above the title.|
-| `spine`      | `string`              | ✅        | Sub-title for the row, displayed alongside `kicker`.                  |
-| `hueLight`   | `string` (CSS color)  | ✅        | Image-area background color in light theme. Hex, `rgb()`, or named.   |
-| `hueDark`    | `string` (CSS color)  | ✅        | Image-area background color in dark theme.                            |
-| `cover`      | `Item`                | ✅        | The slide at `x = 0`. **Must not be null/undefined.**                 |
-| `items`      | `{ left?, right? }`   | ⬜        | Container for rib slides. May be omitted entirely if no ribs.         |
-| `items.left` | `Item[]`              | ⬜        | Left ribs, ordered _outward from spine_ (see §5). Default: `[]`.      |
-| `items.right`| `Item[]`              | ⬜        | Right ribs, ordered _outward from spine_. Default: `[]`.              |
+**Constraints (recommended, not enforced):**
+- Within a row, both ribs MAY be empty (a row with only a cover is valid).
+- Rib lengths MAY vary across rows (this is the whole point of "uneven ribs").
 
-### 3.2 Why `kicker` and `spine` are separate
+### 2.3 Coordinate system
 
-`kicker` is a coarse category label that's often shared across many rows (e.g. `'ESSAY'`), while `spine` is the specific title of this row. The renderer concatenates them as `${kicker} · ${spine}` in the upper meta line of every slide in the row.
-
-### 3.3 Hue choice
-
-Hues are intentionally muted; they are visible behind a faint diagonal grain pattern. Saturation around `8–18%` and lightness `~85%` (light) / `~18%` (dark) produce results consistent with the built-in look.
-
----
-
-## 4. `Item`
-
-```ts
-interface Item {
-  t:   string;   // slide title (the big serif heading)
-  tag: string;   // role label (small mono badge, free-form)
-}
-```
-
-| Field | Type     | Required | Notes |
-|-------|----------|:--------:|-------|
-| `t`   | `string` | ✅        | Main title. May contain Unicode, punctuation, em-dashes, etc. Long titles wrap. |
-| `tag` | `string` | ✅        | Free-form role label. The renderer treats it as opaque text.                    |
-
-### 4.1 `t` — title
-
-Displayed as the slide's primary heading in a large serif face. Naming is short (`t`, not `title`) because items can appear hundreds of times in a dataset; the terse key keeps authoring tractable.
-
-### 4.2 `tag` — role label
-
-Treated as an opaque string by the library. Authors are encouraged — but not required — to use a consistent vocabulary so that visual rhythm is preserved. The reference vocabulary used in `examples/sample-data.js`:
-
-| `tag`        | Intended role                                  |
-|--------------|------------------------------------------------|
-| `feature`    | Main / cover-class article                     |
-| `opening`    | Introduction or framing piece                  |
-| `fragment`   | Short note, marginalia                         |
-| `gallery`    | Image-led piece                                |
-| `sidebar`    | Companion / column / supplementary commentary  |
-| `archive`    | Historical material, reference                 |
-| `manual`     | How-to, instructions                           |
-| `colophon`   | Editorial / production information             |
-| `notes` / `note` | Footnotes, annotations                     |
-| `still`      | Single still image (cinematic context)         |
-| `essay`      | Long-form argument                             |
-| `index`      | Index / table-of-contents-like                 |
-| `epilogue`   | Closing material                               |
-| `reply`      | Letter / response                              |
-| `sketch`     | Loose visual                                   |
-| `object`     | Material thing                                 |
-
-Custom vocabularies are explicitly supported. The library does not validate `tag` values.
-
-### 4.3 Extension fields
-
-Authors may add additional keys to `Item` (e.g. `image`, `href`, `date`, `author`, `excerpt`). The default renderer ignores unknown keys; to surface them, supply a `renderSlide` callback to the SpinRib constructor.
-
-```ts
-new SpinRib({
-  /* ... */
-  renderSlide: (slide: SlideContext, theme: ThemeTokens) => HTMLElement
-});
-```
-
-A custom `renderSlide` receives the fully-flattened slide context (see §5.2) and is free to read any extension fields that survived flattening. Note: by default `flatten()` only copies `t` → `title` and `tag` onto the slide context; extension fields require either a custom flattener or storing them on the row instead of the item.
-
----
-
-## 5. Coordinate system
-
-### 5.1 Mapping items to coordinates
-
-For a given `SpineRow row`:
+For a given `SpineRow row` at index `y`:
 
 ```
 x =  0       →  row.cover
@@ -157,32 +80,7 @@ x = +2       →  row.items.right[1]
 x = +M       →  row.items.right[M - 1]
 ```
 
-In other words: **arrays are ordered from the spine outward.** `items.left[0]` is the rib _adjacent_ to the cover; later indices are progressively further away.
-
-### 5.2 Flattened slide context
-
-`flatten(spines)` is the library's internal projection that produces a one-dimensional list of slide records. Each record exposes:
-
-```ts
-interface SlideContext {
-  y:        number;   // row index (0-based)
-  x:        number;   // signed offset from spine
-  kicker:   string;   // copied from row
-  spine:    string;   // copied from row
-  title:    string;   // copied from item.t
-  tag:      string;   // copied from item.tag
-  isCover:  boolean;  // x === 0 in the current model
-  hueLight: string;   // copied from row
-  hueDark:  string;   // copied from row
-  coord:    string;   // formatted display: e.g. "1+0", "2-3"
-}
-```
-
-`coord` formatting: `${y + 1}${x >= 0 ? '+' : ''}${x}` — i.e. one-based row, signed offset, with `+` shown explicitly for non-negative `x`.
-
-### 5.3 Bounds
-
-For row `r` at index `y`:
+**Bounds for row `r`:**
 
 | Bound       | Expression                                |
 |-------------|-------------------------------------------|
@@ -191,173 +89,219 @@ For row `r` at index `y`:
 | min `y`     | `0`                                        |
 | max `y`     | `spines.length - 1`                       |
 
-Any `(y, x)` outside these bounds is invalid and ignored by `moveBy()` / `jumpTo()`.
+`moveBy()` and `jumpTo()` clamp/reject out-of-bound coordinates silently.
+
+### 2.4 Navigation semantics
+
+| Input         | Effect on `(y, x)`                                        |
+|---------------|-----------------------------------------------------------|
+| `↓`           | `y → y + 1`, `x → 0` (always lands on next row's cover)   |
+| `↑`           | `y → y - 1`, `x → 0`                                       |
+| `→`           | `x → x + 1` (clamped to right rib bound)                  |
+| `←`           | `x → x - 1` (clamped to left rib bound)                   |
+| Mini-map cell | `(y, x) → clicked cell` (rejected if out of bounds)       |
+
+The cover is the canonical entry point of each row; readers cannot teleport directly into a rib via vertical motion.
 
 ---
 
-## 6. Navigation semantics (data implications)
+## 3. Layer 2 — Content (consumer's domain)
 
-The data model influences how navigation behaves:
+Whatever you place inside `cover` and the items arrays is **opaque to the library**. The library passes that value back to your `renderSlide` callback verbatim.
 
-| Input       | Effect on `(y, x)`                                           |
-|-------------|--------------------------------------------------------------|
-| `↓`         | `y → y + 1`, `x → 0` (always lands on next row's cover)      |
-| `↑`         | `y → y - 1`, `x → 0`                                          |
-| `→`         | `x → x + 1` (clamped to right rib bound)                     |
-| `←`         | `x → x - 1` (clamped to left rib bound)                      |
-| Mini-map click | `(y, x) → clicked cell` (rejected if out of bounds)       |
+### 3.1 The `renderSlide` callback
 
-**Implication for authors:** the cover is the canonical entry point of each row. Vertical navigation never visits a rib directly — readers must enter via the cover and step laterally. If a rib is reachable only through a long sequence of presses, design accordingly (or split the row).
+```ts
+new SpinRib({
+  /* ... */
+  renderSlide: (data: any, ctx: SlideContext) => HTMLElement
+});
 
----
+interface SlideContext {
+  y:        number;   // row index
+  x:        number;   // signed offset from spine
+  isCover:  boolean;  // x === 0
+  theme:    'light' | 'dark';
+}
+```
 
-## 7. Constraints & validation
+`data` is whatever the consumer placed at `(ctx.y, ctx.x)`:
 
-Implementations SHOULD reject input that violates the following:
+| Position    | Source                       |
+|-------------|------------------------------|
+| `x = 0`     | `spines[y].cover`            |
+| `x = -k`    | `spines[y].items.left[k - 1]` |
+| `x = +k`    | `spines[y].items.right[k - 1]` |
 
-1. `spines` must be a non-empty array.
-2. Every `SpineRow` must have a `cover` field that is a valid `Item`.
-3. `cover.t` and `cover.tag` must be strings.
-4. If `items` is present, both `items.left` and `items.right` (when present) must be arrays. Each entry must be a valid `Item`.
-5. `kicker`, `spine`, `hueLight`, `hueDark` must be strings.
+The callback returns one `HTMLElement`. The library wraps it in a positioned container (`.spr-slide`) and applies transition animations to that wrapper.
 
-The current reference implementation throws on missing `cover` (see `flatten()` in `src/spinrib.js`). Other constraints are enforced lazily during render — invalid types may produce visual artefacts but not crashes.
+### 3.2 Working with row-level data
 
----
-
-## 8. Examples
-
-### 8.1 Minimal — single row, no ribs
+The library does not pass the full `SpineRow` to `renderSlide` — only `(y, x, isCover, theme)`. To read row-level fields (kicker, hue, etc. in your own schema) close over the spines array:
 
 ```js
-const SPINES = [
+function makeRenderer(spines) {
+  return function renderSlide(data, ctx) {
+    const row = spines[ctx.y];
+    // ... use row.myField as needed
+  };
+}
+
+new SpinRib({ spines, renderSlide: makeRenderer(spines), /* ... */ });
+```
+
+The reference demo at `examples/slide-renderer.js` uses this factory pattern.
+
+### 3.3 The `rowLabel` callback
+
+The mini-map's "current row" indicator can be customized:
+
+```ts
+new SpinRib({
+  /* ... */
+  rowLabel: (row: any, y: number) => string   // default: `Row ${y + 1}`
+});
+```
+
+Returns a short string shown in the upper-right of the mini-map alongside the X-axis indicator (`SPN` / `L1` / `R2` / ...).
+
+---
+
+## 4. CSS variable contract (public)
+
+The library sets these CSS custom properties on `.spr-root` and updates them when the theme changes. Consumer slide markup MAY use them to participate in light/dark theming without manual JS:
+
+| Variable             | Purpose                                  |
+|----------------------|------------------------------------------|
+| `--spr-bg`           | Background (page/stage)                  |
+| `--spr-fg`           | Primary foreground (text)                |
+| `--spr-fg-subtle`    | Secondary text, meta, captions           |
+| `--spr-fg-faint`     | Tertiary / disabled text                 |
+| `--spr-border`       | Thin separators, subtle outlines         |
+| `--spr-panel`        | Translucent panel background             |
+| `--spr-panel-solid`  | Opaque panel background                  |
+| `--spr-accent`       | Brand-ish accent (use sparingly)         |
+
+Other variables (`--spr-arrow*`, `--spr-mini-*`, `--spr-panel-shadow`) are internal to the library's chrome and may change without notice.
+
+---
+
+## 5. Validation rules (enforced)
+
+The constructor throws on:
+
+1. Missing `container` option.
+2. `spines` not an array, or empty.
+3. Missing `renderSlide` (must be a function).
+4. Any `spines[y].cover` that is `null` or `undefined`.
+
+The library does NOT validate item structure beyond that. If your `renderSlide` crashes on a malformed item, the exception propagates.
+
+---
+
+## 6. Examples
+
+### 6.1 Smallest possible — strings as data
+
+```js
+new SpinRib({
+  container: el,
+  spines: [
+    { cover: 'A' },
+    { cover: 'B', items: { right: ['B1', 'B2'] } },
+  ],
+  renderSlide: (data) => {
+    const div = document.createElement('div');
+    div.textContent = data;
+    div.style.cssText = 'display:grid;place-items:center;background:var(--spr-bg);color:var(--spr-fg);font-size:120px;';
+    return div;
+  },
+});
+```
+
+### 6.2 Image gallery — objects as data
+
+```js
+const spines = [
   {
-    kicker: 'WELCOME',
-    spine: 'Hello',
-    hueLight: '#e8d9c4',
-    hueDark:  '#3a3128',
-    cover: { t: 'Hello, world.', tag: 'feature' },
-    // items omitted entirely
+    cover: { src: '/cover.jpg', caption: 'Tokyo' },
+    items: {
+      left:  [{ src: '/a.jpg' }, { src: '/b.jpg' }],
+      right: [{ src: '/c.jpg' }],
+    },
   },
 ];
+
+function renderSlide(data, { isCover }) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:relative;background:#000;';
+  const img = document.createElement('img');
+  img.src = data.src;
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+  wrap.appendChild(img);
+  if (data.caption) {
+    const cap = document.createElement('div');
+    cap.textContent = data.caption;
+    cap.style.cssText = 'position:absolute;bottom:24px;left:24px;color:#fff;';
+    wrap.appendChild(cap);
+  }
+  return wrap;
+}
 ```
 
-This produces exactly 1 slide. All arrow directions are disabled.
+### 6.3 Editorial demo — see `examples/`
 
-### 8.2 Asymmetric ribs — left-only row
+The reference editorial demo lives in `examples/`:
 
-```js
-{
-  kicker: 'FIELD',
-  spine: 'The Refusing Gardener',
-  hueLight: '#dcd4e5',
-  hueDark:  '#322a3a',
-  cover: { t: 'The Gardener Who Refuses to Plan', tag: 'feature' },
-  items: {
-    left: [
-      { t: 'The moss this morning', tag: 'opening'  }, // x = -1
-      { t: 'On planning',           tag: 'sidebar'  }, // x = -2
-      { t: 'Forty seasons in',      tag: 'fragment' }, // x = -3
-      { t: 'A garden in May',       tag: 'sketch'   }, // x = -4
-    ],
-    right: [],   // can also be omitted
-  },
-},
-```
+- `examples/sample-data.js` — illustrates one possible content schema (`{ kicker, spine, hueLight, hueDark, cover: { t, tag }, items: { left: [{t,tag}], right: [{t,tag}] } }`)
+- `examples/slide-renderer.js` — a `renderSlide` for that schema
+- `examples/slide-styles.css` — slide-specific styles
+- `examples/index.html` — wires everything together
 
-`x` ranges over `[-4, 0]`. The right arrow is always disabled on this row.
-
-### 8.3 Symmetric — three on each side
-
-```js
-{
-  kicker: 'OBJECT',
-  spine: 'The Index Card',
-  hueLight: '#d4e5d6',
-  hueDark:  '#2a3a2c',
-  cover: { t: 'A Brief History of the Index Card', tag: 'feature' },
-  items: {
-    left: [
-      { t: 'Before the database',  tag: 'opening' },
-      { t: 'A wooden cabinet',     tag: 'object'  },
-      { t: 'Linnaeus’s slips',     tag: 'archive' },
-    ],
-    right: [
-      { t: 'How to make one',           tag: 'manual'   },
-      { t: 'A taxonomy of taxonomies',  tag: 'sidebar'  },
-      { t: 'Colophon',                  tag: 'colophon' },
-    ],
-  },
-},
-```
+This editorial schema is **not part of the library**. It's an example of what Layer 2 can look like when you want a magazine-style layout.
 
 ---
 
-## 9. Authoring guidelines (non-normative)
+## 7. JSON Schema for Layer 1 (Draft 2020-12)
 
-These are not enforced by the library, but produce datasets that read well:
-
-1. **Use `feature` for covers.** A few specialized covers (`opening`, `colophon`) are fine but the default works because covers are visually distinguished (◆ glyph).
-2. **Vary rib counts.** Uneven ribs are the whole point; rows with identical shapes flatten into a grid and lose the spine-and-rib character.
-3. **Place stronger pieces closer to the spine.** Readers reach `items.left[0]` after one keypress; `items.left[5]` after six.
-4. **Keep `t` short.** Aim for ~40–80 characters for clean wrapping at the default 50px size.
-5. **Keep `kicker` SCREAMING-CASE.** It's typeset as letterspaced uppercase regardless, but uppercase source spares the renderer.
-6. **Maintain a tag vocabulary.** Pick 8–15 tags and reuse them. Random-looking tags break visual rhythm.
-
----
-
-## 10. JSON Schema (Draft 2020-12)
-
-For programmatic validation. Note: `Item` allows additional properties for forward compatibility.
+The library's structural contract, leaving Layer 2 unconstrained:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/yanqirenshi/SpinRib/blob/master/DATAMODEL.md#schema-v0.1",
-  "title": "SpinRib Spines",
+  "$id": "https://github.com/yanqirenshi/SpinRib/blob/master/DATAMODEL.md#schema-v0.2",
+  "title": "SpinRib Spines (structural)",
   "type": "array",
   "minItems": 1,
   "items": { "$ref": "#/$defs/SpineRow" },
   "$defs": {
     "SpineRow": {
       "type": "object",
-      "required": ["kicker", "spine", "hueLight", "hueDark", "cover"],
+      "required": ["cover"],
       "additionalProperties": true,
       "properties": {
-        "kicker":   { "type": "string", "minLength": 1 },
-        "spine":    { "type": "string", "minLength": 1 },
-        "hueLight": { "type": "string", "minLength": 1 },
-        "hueDark":  { "type": "string", "minLength": 1 },
-        "cover":    { "$ref": "#/$defs/Item" },
+        "cover": { "not": { "type": "null" } },
         "items": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "left":  { "type": "array", "items": { "$ref": "#/$defs/Item" } },
-            "right": { "type": "array", "items": { "$ref": "#/$defs/Item" } }
+            "left":  { "type": "array" },
+            "right": { "type": "array" }
           }
         }
-      }
-    },
-    "Item": {
-      "type": "object",
-      "required": ["t", "tag"],
-      "additionalProperties": true,
-      "properties": {
-        "t":   { "type": "string", "minLength": 1 },
-        "tag": { "type": "string", "minLength": 1 }
       }
     }
   }
 }
 ```
 
+The schema deliberately uses `additionalProperties: true` and untyped arrays — Layer 2 is yours.
+
 ---
 
-## 11. Versioning
+## 8. Versioning
 
-This document follows the library's semver. Breaking changes to the data shape will bump the library minor version while pre-1.0, and the major version once `1.0.0` ships. Past versions:
+This document follows the library's semver. Versions:
 
-- **`0.1`** — initial: `cover` + `items.{left,right}`; `t` / `tag`.
-
-Migration notes from earlier internal shapes (e.g. `leftCount` / `rightCount` + flat `items[]` with `cover: true` flag) are recorded in commit history; they are not supported by `0.1`.
+- **`0.2`** — current. Library is content-agnostic; `renderSlide` required; `kicker` / `spine` / `hue*` / `t` / `tag` removed from the library's awareness.
+- **`0.1`** — historical. The library knew about editorial fields directly. Replaced by 0.2's two-layer model.

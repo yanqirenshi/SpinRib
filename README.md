@@ -2,118 +2,154 @@
 
 A 2D spine-and-rib slider for the web. Vertical spine of rows; each row has uneven-length ribs extending left and right. ↑↓ jumps between spine rows, ←→ traverses ribs of the current row.
 
-Zero dependencies. Vanilla ES modules. No build step required.
+Zero dependencies. Vanilla ES modules. No build step required. Content-agnostic — bring your own slide renderer.
 
 ## Quick start
 
 ```html
+<div id="slider" style="width: 1280px; aspect-ratio: 16/9"></div>
+
 <script type="module">
   import { SpinRib } from './src/spinrib.js';
 
+  // Layer 1 — structure (the only thing the library cares about)
   const spines = [
-    {
-      kicker: 'ARCHITECTURE',
-      spine: 'The Quiet Geometry',
-      hueLight: '#e8d9c4',
-      hueDark:  '#3a3128',
-      cover: { t: 'The Quiet Geometry of Tokyo', tag: 'feature' },
-      items: {
-        left: [
-          { t: 'Threshold',          tag: 'opening'  }, // x = -1
-          { t: 'A note on doorways', tag: 'fragment' }, // x = -2
-        ],
-        right: [
-          { t: 'Photographs, half-erased',    tag: 'gallery'  }, // x = +1
-          { t: 'Notes from a small platform', tag: 'sidebar'  }, // x = +2
-          { t: 'Index of empty rooms',        tag: 'colophon' }, // x = +3
-        ],
-      },
-    },
-    // ...more spine rows
+    { cover: 'A',
+      items: { right: ['A1', 'A2'] } },
+    { cover: 'B',
+      items: { left: ['B-left'], right: ['B1'] } },
+    { cover: 'C' },
   ];
 
+  // Layer 2 — content (your responsibility)
+  function renderSlide(data, ctx) {
+    const div = document.createElement('div');
+    div.textContent = data;
+    div.style.cssText = `
+      display: grid; place-items: center;
+      background: var(--spr-bg); color: var(--spr-fg);
+      font-size: 120px;
+    `;
+    return div;
+  }
+
   new SpinRib({
-    container: document.querySelector('#slider'),
+    container: document.getElementById('slider'),
     spines,
-    theme: 'light',
-    miniSize: 'md',
-    chrome: 'arrows',
-    transition: 'slide',
+    renderSlide,
   });
 </script>
 ```
 
-See [`examples/index.html`](examples/index.html) for a full demo with all controls wired up.
+For a fully styled editorial example with all controls wired up, see [`examples/index.html`](examples/index.html).
 
-## Data model
+## Data model — two layers
 
-A spine is a row on the vertical axis. Each spine has a single `cover` (the spine slide at `x = 0`) and ribs extending left and right of varying length. When the user moves up or down, they always land on the next spine's cover.
+SpinRib's data model has a sharp split:
+
+- **Layer 1 — structure** (`cover`, `items.left[]`, `items.right[]`). The library inspects this to compute coordinates and bounds. **This is the only part of the library's contract.**
+- **Layer 2 — content** (whatever you put inside `cover` and the items arrays). Opaque to the library, interpreted only by your `renderSlide` callback.
+
+Minimum row:
 
 ```js
 {
-  kicker: 'PROFILE',                                          // section/category label
-  spine: 'Forty-Two Years',                                   // row title
-  hueLight: '#d4dbe5',                                        // background hue (light theme)
-  hueDark:  '#2a3038',                                        // background hue (dark theme)
-  cover: { t: 'Forty-Two Years of the Same Bowl', tag: 'feature' },  // x = 0
-  items: {
-    left:  [/* outward from spine: items.left[0]  is at x = -1, [1] is at x = -2, ... */],
-    right: [/* outward from spine: items.right[0] is at x = +1, [1] is at x = +2, ... */],
+  cover: any,                        // REQUIRED. Lives at (y, 0).
+  items?: {
+    left?:  any[],                   // outward: [0]→x=-1, [1]→x=-2, ...
+    right?: any[],                   // outward: [0]→x=+1, [1]→x=+2, ...
   },
 }
 ```
 
-**Rib counts are derived from array lengths** — there is no separate `leftCount` / `rightCount` to keep in sync. To add a rib at the far end, just `items.left.push(...)` or `items.right.push(...)`.
+Rib counts are derived from array lengths — there is no `leftCount` / `rightCount` to keep in sync.
 
-`items.left` may be `[]` (no left ribs) and `items.right` may be `[]` (no right ribs). Either side may also be omitted entirely.
-
-For the full specification — field types, constraints, JSON Schema, authoring guidelines — see [`DATAMODEL.md`](DATAMODEL.md).
+For the full specification — coordinate rules, validation, CSS variable contract, JSON Schema — see [`DATAMODEL.md`](DATAMODEL.md).
 
 ## Options
 
-| Option        | Type                                                    | Default        | Description                                          |
-|---------------|---------------------------------------------------------|----------------|------------------------------------------------------|
-| `container`   | `HTMLElement`                                           | required       | Element to mount into                                 |
-| `spines`      | `SpineRow[]`                                            | required       | Array of spine rows                                   |
-| `theme`       | `'light' \| 'dark'`                                     | `'light'`      |                                                       |
-| `miniSize`    | `'sm' \| 'md' \| 'lg'`                                  | `'md'`         | Mini-map density                                      |
-| `chrome`      | `'arrows' \| 'arrows-with-hints' \| 'keyboard' \| 'both'` | `'arrows'`   | Navigation affordance style                           |
-| `transition`  | `'slide' \| 'fade' \| 'cut'`                            | `'slide'`      | Slide-change animation                                |
-| `label`       | `string`                                                | `'SPINE+RIB'`  | Brand chip subtitle                                   |
-| `enableKeys`  | `boolean`                                               | `true`         | Bind arrow keys on `window`                           |
-| `renderSlide` | `(slide, theme) => HTMLElement`                         | built-in       | Custom slide renderer                                 |
-| `onChange`    | `(event) => void`                                       | —              | Called when position changes                          |
+| Option        | Type                                                       | Default     | Description                                              |
+|---------------|------------------------------------------------------------|-------------|----------------------------------------------------------|
+| `container`   | `HTMLElement`                                              | required    | Element to mount into                                    |
+| `spines`      | `SpineRow[]`                                               | required    | Spine rows (Layer 1)                                     |
+| `renderSlide` | `(data, ctx) => HTMLElement`                               | required    | Convert your data into slide DOM                         |
+| `theme`       | `'light' \| 'dark'`                                        | `'light'`   |                                                          |
+| `miniSize`    | `'sm' \| 'md' \| 'lg'`                                     | `'md'`      | Mini-map density                                         |
+| `chrome`      | `'arrows' \| 'arrows-with-hints' \| 'keyboard' \| 'both'`  | `'arrows'`  | Navigation affordance style                              |
+| `transition`  | `'slide' \| 'fade' \| 'cut'`                               | `'slide'`   | Slide-change animation                                   |
+| `enableKeys`  | `boolean`                                                  | `true`      | Bind arrow keys on `window`                              |
+| `rowLabel`    | `(row, y) => string`                                       | `Row ${y+1}`| Label shown in mini-map's current-row indicator          |
+| `onChange`    | `(event) => void`                                          | —           | `event = { type, pos: {y,x}, data }`                     |
+
+### `renderSlide` context
+
+```ts
+ctx = {
+  y: number,            // row index
+  x: number,            // signed offset from spine (0 = cover)
+  isCover: boolean,     // x === 0
+  theme: 'light' | 'dark',
+}
+```
+
+To read row-level fields (your own schema additions like a category label, hue, etc.), close over the `spines` array:
+
+```js
+function makeRenderer(spines) {
+  return function renderSlide(data, ctx) {
+    const row = spines[ctx.y];
+    // ... use row.myCategory etc.
+  };
+}
+```
+
+The reference editorial demo at [`examples/slide-renderer.js`](examples/slide-renderer.js) uses this pattern.
 
 ## API
 
 ```js
 const slider = new SpinRib({ /* ... */ });
 
-slider.moveBy(dx, dy);     // dy moves to spine of next/prev row, dx moves along current rib
-slider.jumpTo(y, x);       // jump to a specific (y, x); ignored if out of range
+slider.moveBy(dx, dy);      // dy moves to next/prev row's cover; dx moves along current rib
+slider.jumpTo(y, x);        // jump to (y, x); silently ignored if out of range
 slider.setTheme('dark');
 slider.setMiniSize('lg');
 slider.setChrome('keyboard');
 slider.setTransition('fade');
-slider.destroy();          // unmounts and unbinds
+slider.currentData();       // raw data at the current position
+slider.currentPos();        // { y, x, isCover }
+slider.destroy();           // unmounts, removes key listener
 ```
 
 ## Navigation rules
 
-- **↑ / ↓** — moves along the spine. Always lands on the spine slide (`x = 0`) of the target row. Disabled at the top/bottom rows.
-- **← / →** — moves along the current row's ribs. Disabled when `x` reaches `-leftCount` / `+rightCount`.
+- **↑ / ↓** — moves along the spine. Always lands on the cover (`x = 0`) of the target row. Disabled at the top/bottom rows.
+- **← / →** — moves along the current row's ribs. Disabled when `x` reaches the rib's outer end.
 - **Mini-map cell click** — jumps directly to that slide.
+
+## CSS variables
+
+The library exposes these on `.spr-root` so your `renderSlide` markup can participate in theme switching:
+
+`--spr-bg`, `--spr-fg`, `--spr-fg-subtle`, `--spr-fg-faint`, `--spr-border`, `--spr-panel`, `--spr-panel-solid`, `--spr-accent`.
+
+See [`DATAMODEL.md` § 4](DATAMODEL.md#4-css-variable-contract-public) for the full contract.
 
 ## Files
 
 ```
 src/
-  spinrib.js   — main class, no dependencies
-  theme.js     — color tokens for light/dark
-  styles.js    — CSS injected into <head> on first instance
+  spinrib.js          — main class, no dependencies (Layer 1 only)
+  theme.js            — color tokens for light/dark
+  styles.js           — chrome CSS injected into <head> on first instance
+
 examples/
-  index.html   — interactive demo
-  sample-data.js
+  index.html          — interactive editorial demo
+  sample-data.js      — reference editorial schema
+  slide-renderer.js   — reference renderSlide for that schema (Layer 2)
+  slide-styles.css    — reference slide CSS (Layer 2)
+
+DATAMODEL.md          — full data-model specification
 ```
 
 ## License

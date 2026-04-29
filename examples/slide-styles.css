@@ -1,0 +1,101 @@
+/* Slide-content styles for the demo. Lives outside the library. The
+   slide reads SpinRib theme tokens (--spr-fg, --spr-fg-subtle, --spr-bg,
+   --spr-border) so light/dark switching works without per-renderer state. */
+
+.demo-slide {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  background: var(--spr-bg);
+  color: var(--spr-fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+.demo-slide-image {
+  position: relative;
+  overflow: hidden;
+  background: var(--demo-hue);
+}
+.demo-slide-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 28px,
+    var(--demo-grain) 28px 29px
+  );
+  pointer-events: none;
+}
+.demo-slide-image-meta {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-family: ui-monospace, "SF Mono", monospace;
+  color: var(--spr-fg-subtle);
+  z-index: 1;
+}
+.demo-slide-image-coord { margin-bottom: 4px; }
+.demo-slide-image-glyph {
+  font-size: 64px;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  color: var(--spr-fg);
+  line-height: 1;
+}
+.demo-slide-image-tag {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: ui-monospace, monospace;
+  padding: 6px 10px;
+  border: 1px dashed var(--spr-fg-subtle);
+  color: var(--spr-fg-subtle);
+  z-index: 1;
+}
+
+.demo-slide-text {
+  padding: 56px 48px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: hidden;
+}
+.demo-slide-kicker {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--spr-fg-subtle);
+  font-family: ui-monospace, monospace;
+}
+.demo-slide-title {
+  font-size: clamp(30px, 3.6vw, 50px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  margin: 0;
+  text-wrap: balance;
+  font-family: "Fraunces", "Times New Roman", serif;
+}
+.demo-slide-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--spr-fg-subtle);
+  font-family: ui-monospace, monospace;
+  padding-top: 16px;
+  border-top: 1px solid var(--spr-border);
+}
+
+.demo-slide-empty {
+  background: var(--spr-bg);
+  color: var(--spr-fg-subtle);
+}

@@ -1,6 +1,15 @@
-// Sample editorial content. Each spine row has uneven left/right ribs.
-// items.left[0] is the rib closest to the spine (x = -1), items.left[1] is x = -2, ...
-// items.right mirrors that on the right (x = +1, +2, ...). cover sits at x = 0.
+// Sample editorial content for the demo.
+//
+// Schema notes:
+//   - The library REQUIRES only `cover` and (optionally) `items.{left,right}`.
+//   - All other fields here (kicker, spine, hueLight, hueDark, t, tag) are
+//     CONSUMER-DEFINED and are consumed by ./slide-renderer.js — not by the
+//     library itself. You can rename / add / drop any of them as long as
+//     your renderSlide callback knows how to read them.
+//
+// Coordinate ordering:
+//   - items.left[0] is the rib closest to the spine (x = -1), items.left[1] is x = -2, ...
+//   - items.right mirrors that on the right (x = +1, +2, ...). cover sits at x = 0.
 
 const HUES_LIGHT = ['#e8d9c4', '#d4dbe5', '#e5d4d4', '#d4e5d6', '#dcd4e5', '#cfd9d4', '#dccfd2'];
 const HUES_DARK  = ['#3a3128', '#2a3038', '#3a2a2a', '#2a3a2c', '#322a3a', '#243030', '#322628'];

@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./slide-styles.css" />
   <style>
     html, body {
       margin: 0;
@@ -193,15 +194,19 @@
   <script type="module">
     import { SpinRib } from '../src/spinrib.js';
     import { SPINES } from './sample-data.js';
+    import { editorialRenderer, editorialRowLabel } from './slide-renderer.js';
 
+    // The editorial renderer is supplied by THIS demo, not the library.
+    // It reads SPINES out of closure to look up row-level fields by (y, x).
     const slider = new SpinRib({
       container: document.getElementById('slider'),
       spines: SPINES,
+      renderSlide: editorialRenderer(SPINES),
+      rowLabel: editorialRowLabel,
       theme: 'light',
       miniSize: 'md',
       chrome: 'arrows',
       transition: 'slide',
-      label: 'LIVE · LIGHT',
     });
 
     // wire up controls
@@ -215,8 +220,6 @@
           const val = btn.dataset.val;
           if (key === 'theme') {
             slider.setTheme(val);
-            slider.label = `LIVE · ${val.toUpperCase()}`;
-            slider._render();
           } else if (key === 'miniSize') {
             slider.setMiniSize(val);
           }

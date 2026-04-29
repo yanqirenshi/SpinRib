@@ -1,3 +1,8 @@
+// Library-only styles. The slide content is rendered by the consumer's
+// renderSlide callback and brings its own styles. This stylesheet covers
+// only the slider chrome: stage container, slide-position wrapper,
+// arrows, mini-map, key-hint cluster, and transition animations.
+
 const STYLE_ID = 'spinrib-styles';
 
 export const STYLES = `
@@ -15,123 +20,19 @@ export const STYLES = `
   overflow: hidden;
 }
 
+/* Each rendered slide is wrapped in .spr-slide. The wrapper handles
+   positioning and transition animation; its single child is whatever
+   the consumer's renderSlide returned. Children should be sized to
+   fill their parent (width: 100%, height: 100%). */
 .spr-slide {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-columns: 1.15fr 1fr;
   will-change: transform, opacity;
 }
-
-.spr-slide-image {
-  position: relative;
-  overflow: hidden;
+.spr-slide > * {
+  width: 100%;
+  height: 100%;
 }
-.spr-slide-image::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0 28px,
-    var(--spr-grain) 28px 29px
-  );
-  pointer-events: none;
-}
-.spr-slide-image-meta {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-family: ui-monospace, "SF Mono", monospace;
-  color: var(--spr-fg-subtle);
-  z-index: 1;
-}
-.spr-slide-image-coord { margin-bottom: 4px; }
-.spr-slide-image-glyph {
-  font-size: 64px;
-  font-weight: 300;
-  letter-spacing: -0.04em;
-  color: var(--spr-fg);
-  line-height: 1;
-}
-.spr-slide-image-tag {
-  position: absolute;
-  bottom: 24px;
-  left: 24px;
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-family: ui-monospace, monospace;
-  padding: 6px 10px;
-  border: 1px dashed var(--spr-fg-subtle);
-  color: var(--spr-fg-subtle);
-  z-index: 1;
-}
-
-.spr-slide-text {
-  padding: 56px 48px 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  overflow: hidden;
-  background: var(--spr-bg);
-  color: var(--spr-fg);
-}
-.spr-slide-kicker {
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--spr-fg-subtle);
-  font-family: ui-monospace, monospace;
-}
-.spr-slide-title {
-  font-size: clamp(30px, 3.6vw, 50px);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  font-weight: 500;
-  margin: 0;
-  text-wrap: balance;
-  font-family: "Fraunces", "Times New Roman", serif;
-}
-.spr-slide-footer {
-  margin-top: auto;
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--spr-fg-subtle);
-  font-family: ui-monospace, monospace;
-  padding-top: 16px;
-  border-top: 1px solid var(--spr-border);
-}
-
-.spr-header {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  z-index: 5;
-  padding: 8px 12px;
-  background: var(--spr-panel);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--spr-border);
-  border-radius: 8px;
-  font-family: ui-monospace, "SF Mono", monospace;
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--spr-fg);
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.spr-header-brand { font-weight: 600; letter-spacing: 0.04em; }
-.spr-header-sep { color: var(--spr-fg-subtle); }
-.spr-header-label { color: var(--spr-fg-subtle); }
 
 .spr-arrow {
   position: absolute;
@@ -246,33 +147,7 @@ export const STYLES = `
 }
 .spr-minimap-head-current { color: var(--spr-fg); font-weight: 500; }
 .spr-minimap-svg { display: block; overflow: visible; }
-.spr-minimap-cell {
-  cursor: pointer;
-  transition: fill .15s;
-}
-
-.spr-transition-badge {
-  position: absolute;
-  bottom: 18px;
-  right: 18px;
-  z-index: 6;
-  padding: 8px 12px;
-  background: var(--spr-panel);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--spr-border);
-  border-radius: 8px;
-  font-family: ui-monospace, monospace;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--spr-fg);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.spr-transition-badge-tag { color: var(--spr-accent); font-weight: 600; }
-.spr-transition-badge-t { color: var(--spr-fg-subtle); }
+.spr-minimap-cell { cursor: pointer; transition: fill .15s; }
 
 @keyframes spr-prev-out {
   from { transform: translate(0, 0); }

@@ -91,8 +91,11 @@ export function SpinRib({
       spines,
       renderSlide: (data, ctx) => {
         const div = document.createElement('div');
-        div.style.width = '100%';
-        div.style.height = '100%';
+        // Fill the .spr-slide wrapper, and make our single React child
+        // stretch to fill us via a 1x1 grid (default place-items: stretch).
+        // This way the consumer's slide root doesn't need to set width/height.
+        div.style.cssText =
+          'width:100%;height:100%;display:grid;grid-template:1fr/1fr;';
         const root = createRoot(div);
         root.render(cbRef.current.renderSlide(data, ctx));
         roots.set(div, root);

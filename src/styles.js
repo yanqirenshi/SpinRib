@@ -8,6 +8,8 @@ const STYLE_ID = 'spinrib-styles';
 export const STYLES = `
 .spr-root {
   position: relative;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;

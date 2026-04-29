@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>SpinRib · React Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../slide-styles.css" />
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!--
+    This index.html is for in-browser preview only. It mirrors the .jsx
+    files in this directory inline so it can run via babel-standalone.
+    Canonical source for Next.js use lives in:
+      ../../src/react/SpinRib.jsx   (the wrapper, exported as 'spinrib/react')
+      ./App.jsx, ./EditorialSlide.jsx
+  -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Pull the framework-agnostic library + sample data via ES modules.
+       Expose them on window so the inline JSX (which is not a module) can use them. -->
+  <script type="module">
+    import { SpinRib as SpinRibLib } from '../../src/spinrib.js';
+    import { SPINES } from '../sample-data.js';
+    window.SpinRibLib = SpinRibLib;
+    window.SPINES = SPINES;
+    window.dispatchEvent(new Event('spinrib-ready'));
+  </script>
+
+  <!-- React wrapper — mirrors src/react/SpinRib.jsx -->
+  <script type="text/babel" data-presets="env,react">
+    const { useEffect, useRef } = React;
+    const { createRoot } = ReactDOM;
+
+    function SpinRibReact({
+      spines, renderSlide, rowLabel,
+      theme = 'light', miniSize = 'md', chrome = 'arrows', transition = 'slide',
+      enableKeys = true, onChange, className, style,
+    }) {
+      const containerRef = useRef(null);
+      const instanceRef = useRef(null);
+
+      // Latest callbacks held in a ref — avoids rebuilding on every render.
+      const cbRef = useRef({});
+      cbRef.current.renderSlide = renderSlide;
+      cbRef.current.rowLabel = rowLabel;
+      cbRef.current.onChange = onChange;
+
+      useEffect(() => {
+        if (!containerRef.current) return;
+
+        const roots = new Map();
+        const observer = new MutationObserver((mutations) => {
+          for (const m of mutations) {
+            for (const removed of m.removedNodes) {
+              const stack = [removed];
+              while (stack.length) {
+                const n = stack.pop();
+                if (roots.has(n)) {
+                  const r = roots.get(n);
+                  roots.delete(n);
+                  queueMicrotask(() => { try { r.unmount(); } catch (_) {} });
+                }
+                if (n.childNodes) for (const c of n.childNodes) stack.push(c);
+              }
+            }
+          }
+        });
+        observer.observe(containerRef.current, { childList: true, subtree: true });
+
+        instanceRef.current = new window.SpinRibLib({
+          container: containerRef.current,
+          spines,
+          renderSlide: (data, ctx) => {
+            const div = document.createElement('div');
+            div.style.cssText =
+              'width:100%;height:100%;display:grid;grid-template:1fr/1fr;';
+            const root = createRoot(div);
+            root.render(cbRef.current.renderSlide(data, ctx));
+            roots.set(div, root);
+            return div;
+          },
+          rowLabel: (row, y) => cbRef.current.rowLabel
+            ? String(cbRef.current.rowLabel(row, y) ?? '')
+            : `Row ${y + 1}`,
+          theme, miniSize, chrome, transition, enableKeys,
+          onChange: (e) => cbRef.current.onChange?.(e),
+        });
+
+        return () => {
+          observer.disconnect();
+          instanceRef.current?.destroy();
+          instanceRef.current = null;
+          for (const [, r] of roots) { try { r.unmount(); } catch (_) {} }
+          roots.clear();
+        };
+      }, [spines]);
+
+      useEffect(() => { instanceRef.current?.setTheme(theme); }, [theme]);
+      useEffect(() => { instanceRef.current?.setMiniSize(miniSize); }, [miniSize]);
+      useEffect(() => { instanceRef.current?.setChrome(chrome); }, [chrome]);
+      useEffect(() => { instanceRef.current?.setTransition(transition); }, [transition]);
+
+      return <div ref={containerRef} className={className} style={style} />;
+    }
+
+    window.SpinRibReact = SpinRibReact;
+  </script>
+
+  <!-- Editorial slide — mirrors examples/react/EditorialSlide.jsx -->
+  <script type="text/babel" data-presets="env,react">
+    function makeEditorialRenderer(spines) {
+      return function renderSlide(data, ctx) {
+        if (!data) return <div className="demo-slide demo-slide-empty" />;
+        const row = spines[ctx.y];
+        return <EditorialSlide data={data} ctx={ctx} row={row} />;
+      };
+    }
+
+    function editorialRowLabel(row) {
+      return row?.kicker?.slice(0, 4) ?? '';
+    }
+
+    function EditorialSlide({ data, ctx, row }) {
+      const hue = ctx.theme === 'dark' ? row.hueDark : row.hueLight;
+      const grain = ctx.theme === 'dark'
+        ? 'rgba(255,255,255,0.025)'
+        : 'rgba(0,0,0,0.022)';
+      const glyph = ctx.isCover ? '◆' : ctx.x < 0 ? '◀' : '▶';
+      const ribLabel = ctx.x === 0 ? 'SPINE' : ctx.x < 0 ? 'L-RIB' : 'R-RIB';
+      const coord = `${ctx.y + 1}${ctx.x >= 0 ? '+' : ''}${ctx.x}`;
+
+      return (
+        <div className="demo-slide" style={{ '--demo-hue': hue, '--demo-grain': grain }}>
+          <div className="demo-slide-image">
+            <div className="demo-slide-image-meta">
+              <div className="demo-slide-image-coord">{coord}</div>
+              <div className="demo-slide-image-glyph">{glyph}</div>
+            </div>
+            <div className="demo-slide-image-tag">image · {data.tag}</div>
+          </div>
+          <div className="demo-slide-text">
+            <div className="demo-slide-kicker">{row.kicker} · {row.spine}</div>
+            <h1 className="demo-slide-title">{data.t}</h1>
+            <div className="demo-slide-footer">
+              <span>SpinRib · No. 014</span>
+              <span>{ribLabel} {Math.abs(ctx.x) || 0}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    window.makeEditorialRenderer = makeEditorialRenderer;
+    window.editorialRowLabel = editorialRowLabel;
+  </script>
+
+  <!-- App + bootstrap — mirrors examples/react/App.jsx -->
+  <script type="text/babel" data-presets="env,react">
+    const { useMemo, useState } = React;
+    const { createRoot } = ReactDOM;
+
+    function App() {
+      const [theme, setTheme] = useState('light');
+      const [miniSize, setMiniSize] = useState('md');
+      const [chrome, setChrome] = useState('arrows');
+      const [transition, setTransition] = useState('slide');
+
+      const renderSlide = useMemo(
+        () => window.makeEditorialRenderer(window.SPINES), []
+      );
+
+      const SpinRib = window.SpinRibReact;
+
+      return (
+        <div className="page">
+          <header className="page-head">
+            <h1>SpinRib · React Demo</h1>
+            <p>Same library, used from React via the &lt;SpinRib /&gt; wrapper.</p>
+          </header>
+
+          <div className="controls">
+            <ControlGroup label="Theme">
+              <Seg value={theme} onChange={setTheme}
+                options={[['light', 'Light'], ['dark', 'Dark']]} />
+            </ControlGroup>
+            <ControlGroup label="Mini-map">
+              <Seg value={miniSize} onChange={setMiniSize}
+                options={[['sm', 'SM'], ['md', 'MD'], ['lg', 'LG']]} />
+            </ControlGroup>
+            <ControlGroup label="Chrome">
+              <select value={chrome} onChange={(e) => setChrome(e.target.value)}>
+                <option value="arrows">Arrows only</option>
+                <option value="arrows-with-hints">Arrows + key labels</option>
+                <option value="keyboard">Keyboard cluster</option>
+                <option value="both">Arrows + keyboard</option>
+              </select>
+            </ControlGroup>
+            <ControlGroup label="Transition">
+              <select value={transition} onChange={(e) => setTransition(e.target.value)}>
+                <option value="slide">Slide</option>
+                <option value="fade">Fade</option>
+                <option value="cut">Cut (instant)</option>
+              </select>
+            </ControlGroup>
+          </div>
+
+          <div className="stage-wrap">
+            <SpinRib
+              spines={window.SPINES}
+              renderSlide={renderSlide}
+              rowLabel={window.editorialRowLabel}
+              theme={theme} miniSize={miniSize}
+              chrome={chrome} transition={transition}
+              style={{ position: 'absolute', inset: 0 }}
+            />
+          </div>
+
+          <p className="helper">Tip — focus the page (click anywhere) and use the arrow keys.</p>
+        </div>
+      );
+    }
+
+    function ControlGroup({ label, children }) {
+      return (
+        <div className="control-group">
+          <label className="title">{label}</label>
+          {children}
+        </div>
+      );
+    }
+
+    function Seg({ value, onChange, options }) {
+      return (
+        <div className="seg">
+          {options.map(([v, label]) => (
+            <button key={v} className={value === v ? 'active' : ''}
+              onClick={() => onChange(v)}>{label}</button>
+          ))}
+        </div>
+      );
+    }
+
+    function bootstrap() {
+      createRoot(document.getElementById('root')).render(<App />);
+    }
+    if (window.SpinRibLib && window.SPINES) bootstrap();
+    else window.addEventListener('spinrib-ready', bootstrap);
+  </script>
+</body>
+</html>
